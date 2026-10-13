@@ -1,4 +1,4 @@
-# KangCatat / cv-financial
+﻿# KangCatat / cv-financial
 
 Aplikasi Android Kotlin untuk pencatatan keuangan IDR dengan inbox draft AI. Setiap konfirmasi menghasilkan jurnal berpasangan; saldo tidak dihitung dari draft. Domain: `kangcatat.biz.id`. Repository: `rafcnzo/cv-financial`.
 
@@ -63,11 +63,11 @@ Untuk Google: buat OAuth client Android untuk package `id.biz.kangcatat` dan SHA
 5. Claude: isi `CLAUDE_API_KEY`, buat workspace proyek dan set batas USD konservatif agar total tagihan termasuk pajak/kurs tidak melampaui Rp100.000. `AI_MONTHLY_LIMIT_USD=5` adalah default sementara, bukan jaminan kurs. Tarif token dan reserve biaya harus cocok dengan model yang dipilih. Kegagalan/retry menyisakan reserve bulan berjalan agar tagihan tak diketahui tidak membuka kuota tambahan.
 6. Isi secret Wrangler dari file lokal menggunakan `scripts/configure-cloud.ts`; script menolak placeholder. Jalankan `npm run deploy:beta` hanya setelah seluruh binding dan secret siap. Pengukuran CPU pada Workers Free menjadi syarat uji tertutup; parsing/hash PDF maksimal 10 MB belum menjamin CPU di bawah 10 ms tanpa pengukuran cloud nyata.
 
-Kapasitas aplikasi membatasi reservasi dokumen pada 2 GiB per environment (4 GiB untuk dev+beta) dan database 800 MiB. Cadangan dibatasi 3 GiB dan salinan tertua dipangkas sebelum batas terlampaui. Pantau **total akun R2** termasuk file di luar aplikasi, request, operasi R2 dan kuota GitHub. Paket berbayar/overage harus tetap dimatikan. Bila batas tercapai, unggahan ditolak; transaksi manual tetap tersedia.
+Kapasitas aplikasi membatasi reservasi dokumen pada 2 GiB per environment (4 GiB untuk dev+beta) dan database 400 MiB (batas Neon Free 0,5 GB). Cadangan dibatasi 3 GiB dan salinan tertua dipangkas sebelum batas terlampaui. Pantau **total akun R2** termasuk file di luar aplikasi, request, operasi R2 dan kuota GitHub. Paket berbayar/overage harus tetap dimatikan. Bila batas tercapai, unggahan ditolak; transaksi manual tetap tersedia.
 
 ## API
 
-Semua route memakai prefix `/v1`; route selain autentikasi membutuhkan bearer access token. Mutasi keuangan dan unggahan membutuhkan `Idempotency-Key` 8–128 karakter. Retry harus memakai key dan payload yang sama; key berbeda dengan payload identik dapat mewakili transaksi baru.
+Semua route memakai prefix `/v1`; route selain autentikasi membutuhkan bearer access token. Mutasi keuangan dan unggahan membutuhkan `Idempotency-Key` 8â€“128 karakter. Retry harus memakai key dan payload yang sama; key berbeda dengan payload identik dapat mewakili transaksi baru.
 
 | Route | Perilaku |
 |---|---|

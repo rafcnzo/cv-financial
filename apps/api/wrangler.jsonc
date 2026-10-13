@@ -1,17 +1,17 @@
-{
+﻿{
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "cv-financial-dev", "main": "src/entry.worker.ts", "compatibility_date": "2026-10-13",
   "compatibility_flags": ["nodejs_compat"],
   "observability": {"enabled":true},
-  "vars": {"ENVIRONMENT":"development","AI_MODEL":"claude-haiku-5-5","INGEST_DOMAIN":"","AI_MONTHLY_LIMIT_USD":"5","AI_MONTHLY_QUOTA":"30","MAX_STORAGE_BYTES":"2147483648","MAX_DB_BYTES":"838860800"},
-  "hyperdrive": [{"binding":"HYPERDRIVE","id":"00000000000000000000000000000000"},{"binding":"AUTH_HYPERDRIVE","id":"00000000000000000000000000000000"}],
+  "vars": {"ENVIRONMENT":"development","AI_MODEL":"claude-haiku-5-5","INGEST_DOMAIN":"","AI_MONTHLY_LIMIT_USD":"5","AI_MONTHLY_QUOTA":"30","MAX_STORAGE_BYTES":"2147483648","MAX_DB_BYTES":"419430400"},
+  "hyperdrive": [{"binding":"HYPERDRIVE","id":"1ea7237297c642658163fd443975be10"},{"binding":"AUTH_HYPERDRIVE","id":"28f534a53d7d4a798fe18cf885a336f8"}],
   "r2_buckets": [{"binding":"DOCUMENTS","bucket_name":"cv-financial-dev"}],
   "workflows": [{"name":"cv-extraction-dev","binding":"EXTRACTION","class_name":"ExtractionWorkflow"}],
   "triggers": {"crons":["17 * * * *"]},
   "env": {"beta": {
     "name":"cv-financial-beta",
-    "vars":{"ENVIRONMENT":"beta","AI_MODEL":"claude-haiku-5-5","INGEST_DOMAIN":"","AI_MONTHLY_LIMIT_USD":"5","AI_MONTHLY_QUOTA":"30","MAX_STORAGE_BYTES":"2147483648","MAX_DB_BYTES":"838860800"},
-    "hyperdrive":[{"binding":"HYPERDRIVE","id":"00000000000000000000000000000000"},{"binding":"AUTH_HYPERDRIVE","id":"00000000000000000000000000000000"}],
+    "vars":{"ENVIRONMENT":"beta","AI_MODEL":"claude-haiku-5-5","INGEST_DOMAIN":"","AI_MONTHLY_LIMIT_USD":"5","AI_MONTHLY_QUOTA":"30","MAX_STORAGE_BYTES":"2147483648","MAX_DB_BYTES":"419430400"},
+    "hyperdrive":[{"binding":"HYPERDRIVE","id":"ec686b988e10414abaf5e5eb8a630b6d"},{"binding":"AUTH_HYPERDRIVE","id":"84b4cbc7d4bd4d4f9a4340b4aed2f4e8"}],
     "r2_buckets":[{"binding":"DOCUMENTS","bucket_name":"cv-financial-beta"}],
     "workflows":[{"name":"cv-extraction-beta","binding":"EXTRACTION","class_name":"ExtractionWorkflow"}],
     "triggers":{"crons":["17 * * * *"]}
