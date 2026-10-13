@@ -58,7 +58,10 @@ app.post('/v1/uploads',async c=>{
  const body=uploadSchema.parse(await c.req.json());
  const doc=await tenant(c.get('authDb'),c.get('userId'),tx=>idempotent(tx,c.get('userId'),key(c),c.req.path,body,async()=>{
   await tx`select id from resource_limits for update`;
-  const [existing]=await tx`select * from raw_documents where user_id=${c.get('userId')} and content_hash=${body.contentHash}`;if(existing)return {id:existing.id,storageKey:existing.storage_key,duplicate:existing.status!=='uploading'};
+  let [existing]=await tx`select * from raw_documents where user_id=${c.get('userId')} and content_hash=${body.contentHash}`;
+  // An upload abandoned before finalize (expired, never extracted) must not block re-uploading the same file forever.
+  if(existing?.status==='expired'&&!(await tx`select 1 from extractions where document_id=${existing.id}`).length){await tx`delete from raw_documents where id=${existing.id}`;existing=undefined as never;}
+  if(existing)return {id:existing.id,storageKey:existing.storage_key,duplicate:existing.status!=='uploading'};
   const [usage]=await tx`select count(*)::int count from raw_documents where user_id=${c.get('userId')} and received_at>=date_trunc('month',now())`;
   const [user]=await tx`select monthly_ai_quota from users where id=${c.get('userId')}`;
   if(usage.count>=Math.min(user.monthly_ai_quota,Number(c.env.AI_MONTHLY_QUOTA||30)))throw new AppError('MONTHLY_QUOTA_REACHED',429);
@@ -87,7 +90,7 @@ app.post('/v1/uploads/:id/complete',async c=>{
   await tenant(c.get('authDb'),c.get('userId'),tx=>idempotent(tx,c.get('userId'),key(c),c.req.path,{},async()=>{
    await tx`select id from resource_limits for update`;
    const [cost]=await tx`select coalesce(sum(cost_usd+reserved_usd),0)::text total from extractions where created_at>=date_trunc('month',now())`;
-   const reserve=Number(c.env.AI_RETRIES_USD_RESERVE||0.10)*3;
+   const reserve=Number(c.env.AI_RETRIES_USD_RESERVE||0.02)*3;
    if(Number(cost.total)+reserve>Number(c.env.AI_MONTHLY_LIMIT_USD))throw new AppError('AI_BUDGET_REACHED',429);
    await tx`insert into extractions(user_id,document_id,model,prompt_version,reserved_usd) values(${c.get('userId')},${id},${c.env.AI_MODEL},'v1',${reserve}) on conflict(document_id,prompt_version) do nothing`;
    await tx`update raw_documents set status='queued',error_code=null where id=${id} and status='uploading'`;
@@ -100,4 +103,5 @@ app.post('/v1/uploads/:id/complete',async c=>{
  return c.json({id,status:'queued'},202);
 });
 app.get('/v1/documents/:id/url',async c=>{const id=z.uuid().parse(c.req.param('id'));const doc=await tenant(c.get('db'),c.get('userId'),async tx=>(await tx`select storage_key,status from raw_documents where id=${id}`)[0]);if(!doc||doc.status==='expired')throw new AppError('DOCUMENT_NOT_FOUND',404);return c.json({url:await new R2Storage(c.env).getUrl(doc.storage_key)});});
+app.post('/v1/devices/remove',async c=>{const {token}=z.object({token:z.string().min(10).max(1000)}).parse(await c.req.json());await tenant(c.get('db'),c.get('userId'),async tx=>{await tx`delete from device_tokens where user_id=${c.get('userId')} and token=${token}`;});return c.json({ok:true});});
 app.post('/v1/devices',async c=>{const {token}=z.object({token:z.string().min(10).max(1000)}).parse(await c.req.json());await tenant(c.get('db'),c.get('userId'),async tx=>{await tx`insert into device_tokens(user_id,token) values(${c.get('userId')},${token}) on conflict(user_id,token) do update set updated_at=now()`;});return c.json({ok:true});});

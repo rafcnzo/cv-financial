@@ -10,6 +10,8 @@ async function maintenance(env:Env){
   // Recover dispatch after process interruption; Workflow ID is the document UUID.
   const queued=await sql`select id,user_id from raw_documents where status='queued' order by received_at limit 30`;
   for(const doc of queued)try{await env.EXTRACTION.create({id:doc.id,params:{documentId:doc.id,userId:doc.user_id}});}catch{/* Existing workflow is already responsible for it. */}
+  // A workflow that died without reaching its catch block must not leave the document in limbo.
+  await sql.begin(async tx=>{await tx`update extractions set status='failed' where status<>'success' and document_id in (select id from raw_documents where status='processing' and received_at<now()-interval '6 hours')`;await tx`update raw_documents set status='failed',error_code='EXTRACTION_STALLED' where status='processing' and received_at<now()-interval '6 hours'`;});
   await sql`delete from email_otps where expires_at<now()-interval '1 day'`;
   await sql`delete from sessions where expires_at<now()-interval '30 days'`;
   console.log(JSON.stringify({event:'maintenance',expired:expired.length,queued:queued.length}));

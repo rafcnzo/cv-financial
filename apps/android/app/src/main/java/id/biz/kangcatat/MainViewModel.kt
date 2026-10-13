@@ -11,6 +11,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -31,6 +32,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var drafts by mutableStateOf(emptyList<Draft>())
     var documents by mutableStateOf(emptyList<Document>())
     var reports by mutableStateOf(emptyList<Report>())
+    var hasMoreEntries by mutableStateOf(false)
+    private var entryOffset = 0
+    private var deviceRegistered = false
     init { if (loggedIn) reload() }
     fun action(block: suspend () -> Unit) {
         if (busy) return
@@ -42,15 +46,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     suspend fun loadData() {
         accounts = api.json.decodeFromString(api.request("/v1/accounts"))
         contacts = api.json.decodeFromString(api.request("/v1/contacts"))
-        entries = api.json.decodeFromString(api.request("/v1/transactions?limit=100"))
+        val firstPage = api.json.decodeFromString<List<Entry>>(api.request("/v1/transactions?limit=$PAGE_SIZE"))
+        entries = firstPage; entryOffset = firstPage.size; hasMoreEntries = firstPage.size == PAGE_SIZE
         drafts = api.json.decodeFromString(api.request("/v1/drafts"))
         documents = api.json.decodeFromString(api.request("/v1/documents"))
         val start = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Jakarta")).withDayOfMonth(1).atStartOfDay(java.time.ZoneId.of("Asia/Jakarta"))
         reports = api.json.decodeFromString(api.request("/v1/reports?from=${Uri.encode(start.toInstant().toString())}&to=${Uri.encode(start.plusMonths(1).toInstant().toString())}"))
+        registerDevice() // retries a registration that failed at login; no-op once registered
+    }
+    fun loadMoreEntries() = action {
+        val page = api.json.decodeFromString<List<Entry>>(api.request("/v1/transactions?limit=$PAGE_SIZE&offset=$entryOffset"))
+        val known = entries.map { it.id }.toSet()
+        entries = entries + page.filter { it.id !in known }
+        entryOffset += page.size; hasMoreEntries = page.size == PAGE_SIZE
     }
     fun reload() = action { loadData() }
     suspend fun registerDevice() {
-        if (FirebaseApp.getApps(getApplication()).isNotEmpty()) runCatching { val token = FirebaseMessaging.getInstance().token.await(); api.request("/v1/devices", "POST", api.json.encodeToString(DeviceRequest(token))) }
+        if (deviceRegistered || FirebaseApp.getApps(getApplication()).isEmpty()) return
+        try {
+            val token = FirebaseMessaging.getInstance().token.await()
+            api.request("/v1/devices", "POST", api.json.encodeToString(DeviceRequest(token)))
+            deviceRegistered = true
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
+            android.util.Log.w("KangCatat", "Registrasi token FCM gagal, dicoba lagi saat data dimuat: ${e.message}")
+        }
+    }
+    private suspend fun unregisterDevice() {
+        if (FirebaseApp.getApps(getApplication()).isEmpty()) return
+        try { api.request("/v1/devices/remove", "POST", api.json.encodeToString(DeviceRequest(FirebaseMessaging.getInstance().token.await()))) }
+        catch (e: CancellationException) { throw e } catch (_: Exception) { }
     }
     private suspend fun finishLogin(response: String) {
         api.saveTokens(api.json.decodeFromString(response)); loggedIn = true
@@ -59,7 +83,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun googleLogin(token: String) = action { finishLogin(api.request("/v1/auth/google", "POST", api.json.encodeToString(GoogleLogin(token)), false)) }
     fun requestOtp(email: String) = action { api.request("/v1/auth/otp/request", "POST", api.json.encodeToString(EmailRequest(email)), false); notice = "Jika email Anda mendapat undangan, kode login dikirim." }
     fun verifyOtp(email: String, code: String) = action { finishLogin(api.request("/v1/auth/otp/verify", "POST", api.json.encodeToString(OtpLogin(email, code)), false)) }
-    fun logout() = action { try { api.request("/v1/auth/logout", "POST") } finally { api.clear(); loggedIn = false; accounts = emptyList(); contacts = emptyList(); drafts = emptyList(); entries = emptyList(); documents = emptyList() } }
+    fun logout() = action { try { unregisterDevice(); deviceRegistered = false; api.request("/v1/auth/logout", "POST") } finally { api.clear(); loggedIn = false; accounts = emptyList(); contacts = emptyList(); drafts = emptyList(); entries = emptyList(); documents = emptyList(); hasMoreEntries = false } }
     fun account(name: String, subtype: String) = action { api.request("/v1/accounts", "POST", api.json.encodeToString(AccountRequest(name, subtype = subtype))); loadData() }
     fun contact(name: String) = action { api.request("/v1/contacts", "POST", api.json.encodeToString(ContactRequest(name))); loadData() }
     fun save(transaction: Transaction, draft: Draft?, done: () -> Unit) = action {
@@ -101,4 +125,5 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (!ticket.duplicate) { api.upload(ticket, bytes, mime); api.request("/v1/uploads/${ticket.id}/complete", "POST") }
         loadData(); notice = if (ticket.duplicate) "Dokumen sudah pernah diunggah. Periksa inbox atau status dokumen." else "Dokumen masuk antrean. Anda mendapat notifikasi saat draft siap."
     }
+    private companion object { const val PAGE_SIZE = 100 }
 }

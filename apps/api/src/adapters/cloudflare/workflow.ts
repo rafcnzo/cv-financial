@@ -41,7 +41,7 @@ export class ExtractionWorkflow extends WorkflowEntrypoint<Env,Job>{
     });}finally{await sql.end();}
    });
    if(count)await step.do('notify-user',{retries:{limit:1,delay:'5 seconds'}},async()=>{
-    const {sql}=connect(this.env);try{const tokens=await tenant(sql,userId,async tx=>tx`select token from device_tokens where user_id=${userId} limit 10`);await new FcmNotifier(this.env).notify(tokens.map(r=>r.token),count);}finally{await sql.end();}
+    const {sql}=connect(this.env);try{const tokens=await tenant(sql,userId,async tx=>tx`select token from device_tokens where user_id=${userId} order by updated_at desc limit 10`);await new FcmNotifier(this.env).notify(tokens.map(r=>r.token),count);}finally{await sql.end();}
    });
    return {draftCount:count};
   }catch(error){

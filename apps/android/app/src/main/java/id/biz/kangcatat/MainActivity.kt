@@ -106,7 +106,7 @@ class MainActivity : ComponentActivity() {
             val token = GoogleIdTokenCredential.createFrom(credential.data).idToken
             // Complete in this coroutine; action() prevents starting a nested action.
             val response = vm.api.request("/v1/auth/google", "POST", vm.api.json.encodeToString(GoogleLogin.serializer(), GoogleLogin(token)), false)
-            vm.api.saveTokens(vm.api.json.decodeFromString(Tokens.serializer(), response)); vm.loggedIn = true; vm.loadData(); vm.registerDevice()
+            vm.api.saveTokens(vm.api.json.decodeFromString(Tokens.serializer(), response)); vm.loggedIn = true; vm.registerDevice(); vm.loadData()
         }
     }, enabled = !vm.busy) { Text("Masuk dengan Google") }
     OutlinedTextField(email, { email = it }, label = { Text("Email undangan") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth())
@@ -127,6 +127,7 @@ class MainActivity : ComponentActivity() {
             entry.lines.forEach { Text("${it.accountName}: ${rupiah(it.amount)}") }
             if (entry.reverses_entry_id == null) TextButton(onClick = { reversing = entry }, enabled = !vm.busy) { Text("Buat pembalik") }
         } } }
+        if (vm.hasMoreEntries) item { OutlinedButton(onClick = { vm.loadMoreEntries() }, enabled = !vm.busy) { Text("Muat transaksi lebih lama") } }
     }
     reversing?.let { entry -> AlertDialog(onDismissRequest = { reversing = null }, title = { Text("Balik transaksi ini?") }, text = { Text("Saldo transaksi ini dikembalikan. Riwayat asli tetap ada; buat transaksi baru untuk koreksi.") }, confirmButton = { TextButton(onClick = { vm.reverse(entry); reversing = null }) { Text("Buat pembalik") } }, dismissButton = { TextButton(onClick = { reversing = null }) { Text("Batal") } }) }
 }

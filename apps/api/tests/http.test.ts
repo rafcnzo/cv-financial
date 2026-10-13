@@ -56,4 +56,29 @@ describe.skipIf(!url)('HTTP contracts with real PostgreSQL',()=>{
   expect((await request(`/v1/drafts/${draft.id}/confirm`,'POST',body)).status).toBe(409);
   expect((await request(`/v1/drafts/${draft.id}`,'PATCH',body)).status).toBe(409);
  });
+
+ it('replays an ambiguous retry with the same key and rejects a different payload',async()=>{
+  const body={kind:'expense',amount:'7000',accountId:bank,counterpartAccountId:expense,description:'retry',occurredAt:'2026-10-13T01:00:00Z'};
+  const key=crypto.randomUUID();
+  const first=await request('/v1/transactions','POST',body,key),again=await request('/v1/transactions','POST',body,key);
+  expect([first.status,again.status]).toEqual([201,201]);
+  expect((await again.json() as {id:string}).id).toBe((await first.json() as {id:string}).id);
+  expect((await owner`select id from journal_entries where user_id=${user} and description='retry'`).length).toBe(1);
+  expect((await request('/v1/transactions','POST',{...body,amount:'7001'},key)).status).toBe(409);
+ });
+ it('allows re-uploading a file whose earlier upload expired before finalize',async()=>{
+  const data=new Uint8Array([0xff,0xd8,0xff,9,9,9,9]).buffer;
+  const body={fileName:'again.jpg',contentType:'image/jpeg',contentHash:await hash(data),sizeBytes:data.byteLength,pageCount:1};
+  const first=await (await request('/v1/uploads','POST',body)).json() as {id:string};
+  await owner.begin(async tx=>{await tx`update raw_documents set status='expired' where id=${first.id}`;await tx`update resource_limits set reserved_storage_bytes=greatest(0,reserved_storage_bytes-${data.byteLength})`;});
+  const second=await (await request('/v1/uploads','POST',body)).json() as {id:string;duplicate:boolean;uploadUrl?:string};
+  expect(second.duplicate).toBe(false);expect(second.id).not.toBe(first.id);expect(second.uploadUrl).toBeTruthy();
+ });
+ it('removes a device token on request',async()=>{
+  const token='fcm-token-for-test-0001';
+  expect((await request('/v1/devices','POST',{token})).status).toBe(200);
+  expect((await owner`select 1 from device_tokens where user_id=${user} and token=${token}`).length).toBe(1);
+  expect((await request('/v1/devices/remove','POST',{token})).status).toBe(200);
+  expect((await owner`select 1 from device_tokens where user_id=${user} and token=${token}`).length).toBe(0);
+ });
 });

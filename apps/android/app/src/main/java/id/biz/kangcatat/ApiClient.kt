@@ -38,10 +38,16 @@ class ApiClient(val store: TokenStore) {
         }
         var response = try { send() } catch (_: IOException) { send() }
         if (response.first == 401 && authenticated) {
+            val used = tokens?.accessToken
             refreshLock.withLock {
+                // Another ApiClient (e.g. the FCM service) may already have rotated the refresh token in storage;
+                // reusing a stale refresh token would trip reuse detection and revoke the whole session.
+                store.read("tokens")?.let { runCatching { json.decodeFromString<Tokens>(it) }.getOrNull() }?.let { tokens = it }
                 val current = tokens ?: throw IOException("Sesi berakhir. Silakan login kembali.")
+                if (current.accessToken == used) {
                 val refresh = request("/v1/auth/refresh", "POST", json.encodeToString(RefreshRequest(current.refreshToken)), false)
                 saveTokens(json.decodeFromString(refresh))
+                }
             }
             response = send()
         }
