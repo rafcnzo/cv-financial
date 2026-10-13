@@ -1,0 +1,20 @@
+JWT_SECRET=replace-with-32-byte-random-secret
+OTP_SECRET=replace-with-another-random-secret
+GOOGLE_CLIENT_ID=your-backend-google-oauth-client-id
+RESEND_API_KEY=
+RESEND_FROM=CV Financial <login@your-domain.biz.id>
+RESEND_WEBHOOK_SECRET=
+CLAUDE_API_KEY=
+R2_ACCOUNT_ID=
+R2_BUCKET=cv-financial-dev
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+FCM_PROJECT_ID=
+FCM_SERVICE_ACCOUNT_EMAIL=
+FCM_PRIVATE_KEY=
+AI_INPUT_USD_PER_MTOK=0.10
+AI_OUTPUT_USD_PER_MTOK=0.50
+AI_RETRIES_USD_RESERVE=0.02
+# Use restricted DB logins granted cv_app / cv_system respectively.
+CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=postgres://cv_runtime:local-only@localhost:5432/cv_financial
+CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_AUTH_HYPERDRIVE=postgres://cv_auth:local-only@localhost:5432/cv_financial

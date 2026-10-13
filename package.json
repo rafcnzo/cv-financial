@@ -1,0 +1,17 @@
+{
+  "name": "cv-financial", "private": true, "version": "0.1.0", "type": "module",
+  "workspaces": ["apps/api", "packages/schema"],
+  "scripts": {
+    "dev": "npm run dev -w @cv/api",
+    "check": "npm run check --workspaces",
+    "test": "npm run test -w @cv/api",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:local": "tsx scripts/setup-local.ts",
+    "invite": "tsx scripts/admin.ts invite",
+    "export:user": "tsx scripts/admin.ts export",
+    "delete:user": "tsx scripts/admin.ts delete",
+    "deploy:beta": "npm run deploy:beta -w @cv/api"
+  },
+  "devDependencies": {"tsx": "^4.20.0", "typescript": "^5.9.0", "@types/node": "^24.0.0"},
+  "dependencies": {"postgres": "^3.4.7"}
+}
